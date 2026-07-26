@@ -30,8 +30,15 @@ jobs:
         mkdir -p bin
         javac -cp "lib/midp20.jar:lib/cldc11.jar" -d bin MiniBrowser.java
 
-    - name: Package JAR
+    - name: Generate Manifest and Package JAR
       run: |
+        echo "MIDlet-1: 2G Browser, , MiniBrowser" > MANIFEST.MF
+        echo "MIDlet-Name: 2GBrowser" >> MANIFEST.MF
+        echo "MIDlet-Vendor: Custom" >> MANIFEST.MF
+        echo "MIDlet-Version: 1.0" >> MANIFEST.MF
+        echo "MicroEdition-Configuration: CLDC-1.1" >> MANIFEST.MF
+        echo "MicroEdition-Profile: MIDP-2.0" >> MANIFEST.MF
+        echo "" >> MANIFEST.MF
         jar cvfm MiniBrowser.jar MANIFEST.MF -C bin .
 
     - name: Upload Build Artifact
