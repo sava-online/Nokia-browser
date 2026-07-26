@@ -12,23 +12,16 @@ public class MiniBrowser extends MIDlet implements CommandListener, Runnable {
     private Command goCommand;
     private Command exitCommand;
 
-    // ВАЖНО: Замени этот URL на адрес своего приложения на PythonAnywhere!
-    private static final String SERVER_URL = "http://твой_логин.pythonanywhere.com/view?url=";
-
     public MiniBrowser() {
         display = Display.getDisplay(this);
+        mainForm = new Form("2G Browser");
+        urlField = new TextField("URL:", "google.com", 256, TextField.ANY);
+        statusLabel = new StringItem("Status:", "Ready");
+        contentArea = new StringItem("Content:", "");
 
-        // Создаем элементы интерфейса
-        mainForm = new Form("2G Web Browser");
-        urlField = new TextField("Адрес сайта:", "google.com", 256, TextField.ANY);
-        statusLabel = new StringItem("Статус:", "Готов к работе");
-        contentArea = new StringItem("Контент:", "");
+        goCommand = new Command("Go", Command.OK, 1);
+        exitCommand = new Command("Exit", Command.EXIT, 2);
 
-        // Кнопки управления
-        goCommand = new Command("Перейти", Command.OK, 1);
-        exitCommand = new Command("Выход", Command.EXIT, 2);
-
-        // Собираем экран
         mainForm.append(urlField);
         mainForm.append(statusLabel);
         mainForm.append(contentArea);
@@ -43,14 +36,12 @@ public class MiniBrowser extends MIDlet implements CommandListener, Runnable {
     }
 
     protected void pauseApp() {}
-
     protected void destroyApp(boolean unconditional) {}
 
     public void commandAction(Command c, Displayable d) {
         if (c == goCommand) {
-            // Запускаем сеть в отдельном потоке, чтобы экран не зависал
-            Thread thread = new Thread(this);
-            thread.start();
+            Thread t = new Thread(this);
+            t.start();
         } else if (c == exitCommand) {
             destroyApp(true);
             notifyDestroyed();
@@ -58,51 +49,31 @@ public class MiniBrowser extends MIDlet implements CommandListener, Runnable {
     }
 
     public void run() {
-        String inputUrl = urlField.getString().trim();
-        if (inputUrl.length() == 0) {
-            statusLabel.setText("Ошибка: введите URL!");
-            return;
-        }
-
-        statusLabel.setText("Соединение с сервером...");
+        statusLabel.setText("Connecting...");
         contentArea.setText("");
-
         HttpConnection http = null;
         InputStream is = null;
-
         try {
-            // Формируем запрос к твоему PythonAnywhere
-            String requestUrl = SERVER_URL + inputUrl;
-            http = (HttpConnection) Connector.open(requestUrl);
-            http.setRequestMethod(HttpConnection.GET);
-
-            int responseCode = http.getResponseCode();
-
-            if (responseCode == HttpConnection.HTTP_OK) {
-                statusLabel.setText("Загрузка данных...");
+            http = (HttpConnection) Connector.open("http://" + urlField.getString().trim());
+            int rc = http.getResponseCode();
+            if (rc == HttpConnection.HTTP_OK) {
+                statusLabel.setText("Loading...");
                 is = http.openInputStream();
-                
                 StringBuffer sb = new StringBuffer();
                 int ch;
-                // Читаем ответ побайтово
                 while ((ch = is.read()) != -1) {
                     sb.append((char) ch);
                 }
-
-                statusLabel.setText("Готово!");
+                statusLabel.setText("Done!");
                 contentArea.setText(sb.toString());
             } else {
-                statusLabel.setText("Ошибка сервера: " + responseCode);
+                statusLabel.setText("HTTP Error: " + rc);
             }
-
         } catch (Exception e) {
-            statusLabel.setText("Ошибка сети: " + e.getMessage());
+            statusLabel.setText("Error: " + e.getMessage());
         } finally {
-            // Обязательно закрываем соединения
-            try {
-                if (is != null) is.close();
-                if (http != null) http.close();
-            } catch (Exception e) {}
+            try { if (is != null) is.close(); } catch (Exception e) {}
+            try { if (http != null) http.close(); } catch (Exception e) {}
         }
     }
 }
