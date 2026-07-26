@@ -19,15 +19,16 @@ jobs:
         java-version: '8'
         distribution: 'temurin'
 
-    - name: Download MIDP Library
+    - name: Download MIDP & CLDC Libraries
       run: |
         mkdir -p lib
-        curl -sL "https://repo1.maven.org/maven2/org/microemu/microemu-midp/2.0.4/microemu-midp-2.0.4.jar" -o lib/midp.jar
+        curl -sL "https://repo1.maven.org/maven2/org/microemu/microemu-midp/2.0.4/microemu-midp-2.0.4.jar" -o lib/midp20.jar
+        curl -sL "https://repo1.maven.org/maven2/org/microemu/microemu-cldc/2.0.4/microemu-cldc-2.0.4.jar" -o lib/cldc11.jar
 
     - name: Compile Java Code
       run: |
         mkdir -p bin
-        javac -source 1.7 -target 1.7 -cp lib/midp.jar -d bin MiniBrowser.java
+        javac -cp "lib/midp20.jar:lib/cldc11.jar" -d bin MiniBrowser.java
 
     - name: Package JAR
       run: |
