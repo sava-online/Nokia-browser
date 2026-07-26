@@ -3,7 +3,8 @@ import javax.microedition.lcdui.*;
 import javax.microedition.io.*;
 import java.io.*;
 
-public class MiniBrowser extends MIDlet implements CommandListener, Runnable {
+public class MiniBrowser extends MIDlet implements CommandListener {
+
     private Display display;
     private Form mainForm;
     private TextField urlField;
@@ -12,10 +13,13 @@ public class MiniBrowser extends MIDlet implements CommandListener, Runnable {
     private Command goCommand;
     private Command exitCommand;
 
+    // IP-адрес твоего сервера из Pydroid 3
+    private static final String PROXY_SERVER = "http://192.168.1.51:5000/parse?url=";
+
     public MiniBrowser() {
-        display = Display.getDisplay(this);
-        mainForm = new Form("2G Browser");
-        urlField = new TextField("URL:", "google.com", 256, TextField.ANY);
+        mainForm = new Form("Supercash v0.1 Alpha 1");
+
+        urlField = new TextField("Address:", "google.com", 256, TextField.URL);
         statusLabel = new StringItem("Status:", "Ready");
         contentArea = new StringItem("Content:", "");
 
@@ -32,45 +36,59 @@ public class MiniBrowser extends MIDlet implements CommandListener, Runnable {
     }
 
     protected void startApp() {
+        display = Display.getDisplay(this);
         display.setCurrent(mainForm);
     }
 
     protected void pauseApp() {}
+
     protected void destroyApp(boolean unconditional) {}
 
     public void commandAction(Command c, Displayable d) {
         if (c == goCommand) {
-            Thread t = new Thread(this);
-            t.start();
+            new Thread(new Runnable() {
+                public void run() {
+                    loadWebPage();
+                }
+            }).start();
         } else if (c == exitCommand) {
-            destroyApp(true);
+            destroyApp(false);
             notifyDestroyed();
         }
     }
 
-    public void run() {
+    private void loadWebPage() {
         statusLabel.setText("Connecting...");
         contentArea.setText("");
         HttpConnection http = null;
         InputStream is = null;
+
         try {
-            http = (HttpConnection) Connector.open("http://" + urlField.getString().trim());
+            String target = urlField.getString().trim();
+            String fullUrl = PROXY_SERVER + target;
+
+            http = (HttpConnection) Connector.open(fullUrl);
             int rc = http.getResponseCode();
+
             if (rc == HttpConnection.HTTP_OK) {
                 statusLabel.setText("Loading...");
                 is = http.openInputStream();
+                
                 StringBuffer sb = new StringBuffer();
                 int ch;
                 while ((ch = is.read()) != -1) {
                     sb.append((char) ch);
                 }
-                statusLabel.setText("Done!");
+
+                statusLabel.setText("Done");
                 contentArea.setText(sb.toString());
             } else {
-                statusLabel.setText("HTTP Error: " + rc);
+                statusLabel.setText("Error code: " + rc);
             }
+
         } catch (Exception e) {
-            statusLabel.setText("Error: " + e.getMessage());
+            statusLabel.setText("Error");
+            contentArea.setText(e.getMessage());
         } finally {
             try { if (is != null) is.close(); } catch (Exception e) {}
             try { if (http != null) http.close(); } catch (Exception e) {}
