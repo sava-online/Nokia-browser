@@ -3,8 +3,7 @@ import javax.microedition.lcdui.*;
 import javax.microedition.io.*;
 import java.io.*;
 
-public class MiniBrowser extends MIDlet implements CommandListener {
-
+public class MiniBrowser extends MIDlet implements CommandListener, Runnable {
     private Display display;
     private Form mainForm;
     private TextField urlField;
@@ -13,22 +12,24 @@ public class MiniBrowser extends MIDlet implements CommandListener {
     private Command goCommand;
     private Command exitCommand;
 
-    // IP-адрес твоего сервера из Pydroid 3
-    private static final String PROXY_SERVER = "http://192.168.1.51:5000/parse?url=";
+    // ВНИМАНИЕ: Замени этот IP на IP-адрес твоего телефона с Pydroid в локальной сети!
+    private static final String PROXY_SERVER = "http://192.168.1.15:5000/parse?url=";
 
     public MiniBrowser() {
-        mainForm = new Form("Supercash v0.1 Alpha 1");
+        display = Display.getDisplay(this);
+
+        mainForm = new Form("Supercash v0.1");
 
         urlField = new TextField("Address:", "google.com", 256, TextField.URL);
         statusLabel = new StringItem("Status:", "Ready");
         contentArea = new StringItem("Content:", "");
 
-        goCommand = new Command("Go", Command.OK, 1);
-        exitCommand = new Command("Exit", Command.EXIT, 2);
-
         mainForm.append(urlField);
         mainForm.append(statusLabel);
         mainForm.append(contentArea);
+
+        goCommand = new Command("GO", Command.OK, 1);
+        exitCommand = new Command("EXIT", Command.EXIT, 2);
 
         mainForm.addCommand(goCommand);
         mainForm.addCommand(exitCommand);
@@ -36,7 +37,6 @@ public class MiniBrowser extends MIDlet implements CommandListener {
     }
 
     protected void startApp() {
-        display = Display.getDisplay(this);
         display.setCurrent(mainForm);
     }
 
@@ -46,26 +46,25 @@ public class MiniBrowser extends MIDlet implements CommandListener {
 
     public void commandAction(Command c, Displayable d) {
         if (c == goCommand) {
-            new Thread(new Runnable() {
-                public void run() {
-                    loadWebPage();
-                }
-            }).start();
+            new Thread(this).start();
         } else if (c == exitCommand) {
-            destroyApp(false);
+            destroyApp(true);
             notifyDestroyed();
         }
     }
 
-    private void loadWebPage() {
+    public void run() {
         statusLabel.setText("Connecting...");
         contentArea.setText("");
         HttpConnection http = null;
         InputStream is = null;
+        InputStreamReader isr = null;
 
         try {
-            String target = urlField.getString().trim();
-            String fullUrl = PROXY_SERVER + target;
+            String targetUrl = urlField.getString().trim();
+            
+            // Если запрос идет не к локальному серверу напрямую, то оборачиваем через прокси
+            String fullUrl = PROXY_SERVER + targetUrl;
 
             http = (HttpConnection) Connector.open(fullUrl);
             int rc = http.getResponseCode();
@@ -74,22 +73,23 @@ public class MiniBrowser extends MIDlet implements CommandListener {
                 statusLabel.setText("Loading...");
                 is = http.openInputStream();
                 
+                // Вот та самая строчка: читаем поток строго в UTF-8, чтобы не было крякозябр!
+                isr = new InputStreamReader(is, "UTF-8");
                 StringBuffer sb = new StringBuffer();
                 int ch;
-                while ((ch = is.read()) != -1) {
+                while ((ch = isr.read()) != -1) {
                     sb.append((char) ch);
                 }
 
                 statusLabel.setText("Done");
                 contentArea.setText(sb.toString());
             } else {
-                statusLabel.setText("Error code: " + rc);
+                statusLabel.setText("HTTP Error: " + rc);
             }
-
         } catch (Exception e) {
-            statusLabel.setText("Error");
-            contentArea.setText(e.getMessage());
+            statusLabel.setText("Error: " + e.getMessage());
         } finally {
+            try { if (isr != null) isr.close(); } catch (Exception e) {}
             try { if (is != null) is.close(); } catch (Exception e) {}
             try { if (http != null) http.close(); } catch (Exception e) {}
         }
